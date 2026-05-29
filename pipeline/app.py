@@ -39,6 +39,7 @@ _pipeline_dir = os.environ.get("GRAPHQ_PIPELINE_DIR", os.path.dirname(os.path.ab
 if _pipeline_dir not in sys.path:
     sys.path.insert(0, _pipeline_dir)
 from pipeline import NPMGEEPipeline, compute_npmi, gee_embed, build_cooccurrence_matrix
+from seed_docs import SEED_DOCUMENTS
 
 # ── LiteParse ─────────────────────────────────────────────────────────────────
 from liteparse import LiteParse
@@ -76,6 +77,8 @@ print(f"[startup] Flushed {_removed} leftover PDF(s) from /tmp/graphq_uploads/")
 
 # In-memory document registry (ephemeral — cleared on restart)
 _documents: dict = {}
+_seed_pipeline: Optional[NPMGEEPipeline] = None
+_current_is_seed: bool = False
 
 # =============================================================================
 # Helpers
@@ -143,13 +146,43 @@ def make_metrics(start_ns: int, token_count: int = 0, extra: dict = None) -> dic
     return m
 
 # =============================================================================
+# Seed Document Indexing (auto-builds on startup)
+# =============================================================================
+
+def build_seed_pipeline():
+    """Build the demo pipeline from seed documents. Called once at startup."""
+    global _seed_pipeline, _pipeline, _current_is_seed
+    print(f"[startup] Building seed pipeline from {len(SEED_DOCUMENTS)} demo documents...")
+    docs = [text for _, text in SEED_DOCUMENTS]
+    pipeline = NPMGEEPipeline(npmi_window=5, alpha=0.5)
+    pipeline.build_from_text_corpus(docs, chunk_size=200)
+    _seed_pipeline = pipeline
+    _pipeline = pipeline
+    _current_is_seed = True
+    stats = pipeline_stats(pipeline)
+    print(f"[startup] Seed pipeline ready: {stats['vocab_size']} words, {stats['embedding_dim']}D embeddings, {stats['lider_bins']} LIDER bins")
+
+def seed_document_list():
+    """Return list of seed document metadata (no actual text)."""
+    return [
+        {"id": f"seed-{i}", "title": title, "chars": len(text), "is_seed": True}
+        for i, (title, text) in enumerate(SEED_DOCUMENTS)
+    ]
+
+# =============================================================================
 # Endpoints (all sync def — pipeline calls are CPU-bound, not async)
 # =============================================================================
 
 @app.get("/health")
 def health():
     status = "ready" if _pipeline is not None else "not_indexed"
-    return {"status": status, "pipeline": status}
+    return {
+        "status": status,
+        "pipeline": status,
+        "is_seed": _current_is_seed,
+        "seed_docs_available": _seed_pipeline is not None,
+        "doc_count": len(_documents),
+    }
 
 
 # ── Legacy /parse endpoint (still used internally) ────────────────────────────
@@ -569,6 +602,28 @@ def stats():
     return JSONResponse(pipeline_stats(_pipeline))
 
 
+@app.get("/demo/reset")
+def reset_to_demo():
+    """Reset the current pipeline back to the seed demo documents."""
+    global _pipeline, _current_is_seed
+    if _seed_pipeline is None:
+        raise HTTPException(500, "Seed pipeline not initialized")
+    _pipeline = _seed_pipeline
+    _current_is_seed = True
+    return JSONResponse({
+        "status": "reset_to_seed",
+        "stats": pipeline_stats(_seed_pipeline),
+        "demo_documents": seed_document_list(),
+    })
+
+@app.get("/demo/documents")
+def list_seed_docs():
+    """List the seed/demo documents (titles only, not full text)."""
+    return JSONResponse({
+        "count": len(SEED_DOCUMENTS),
+        "documents": seed_document_list(),
+    })
+
 # =============================================================================
 # Document Storage (Ephemeral — /tmp/ only, wiped on restart)
 # =============================================================================
@@ -727,5 +782,6 @@ def delete_document(doc_id: str):
 if __name__ == "__main__":
     port = int(os.environ.get("GRAPHQ_PORT", 8766))
     print(f"GraphQ API starting on port {port}...")
-    print(f"⚠️  EPHEMERAL MODE — /tmp/graphq_uploads/ flushed on every startup")
+    print(f"⚠️  EPHEMERAL MODE — user uploads wiped on restart. Seed demo docs are permanent.")
+    build_seed_pipeline()
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
