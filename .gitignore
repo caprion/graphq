@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv/
+venv/
+/tmp/
+*.log
+qdrant-storage/
+qdrant.log
+node_modules/
+.wrangler/
+.DS_Store
+*.swp
+*.swo

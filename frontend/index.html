@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GraphQ — PDF Q+A · NPMI · GEE · LIDER</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+
+    <!-- ═══ DISCLAIMER BANNER ══════════════════════════════════════════════ -->
+    <div class="disclaimer-banner">
+      <span class="disclaimer-icon">⚠️</span>
+      <strong>Ephemeral mode:</strong> All documents are stored temporarily in server memory
+      and <code>/tmp/</code> only — <em>wiped automatically on restart</em>.
+      Do NOT upload personal, confidential, or sensitive documents.
+    </div>
+
+    <!-- ═══ HEADER ════════════════════════════════════════════════════════ -->
+    <header class="header">
+      <div class="logo">
+        <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="8" fill="#6366f1"/>
+          <path d="M8 10h16M8 16h10M8 22h13" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="24" cy="22" r="4" fill="#22d3ee" stroke="white" stroke-width="1.5"/>
+          <path d="M22.5 22l1 1 2-2" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <h1>GraphQ</h1>
+      </div>
+      <div class="header-right">
+        <span class="tagline">NPMI · GEE · LIDER</span>
+        <label class="dev-toggle" title="Developer mode — see step-by-step pipeline trace">
+          <input type="checkbox" id="devToggle">
+          <span>🔬 Dev</span>
+        </label>
+      </div>
+    </header>
+
+    <!-- ═══ STATUS BAR ════════════════════════════════════════════════════ -->
+    <div class="status-bar" id="statusBar">
+      <span id="apiStatus" class="status-chip dot-red">API: checking...</span>
+      <span id="indexStatus" class="status-chip dot-gray">Index: not built</span>
+      <span class="spinner" id="spinner" style="display:none"></span>
+      <span id="statusMsg"></span>
+    </div>
+
+    <!-- ═══ MAIN ═════════════════════════════════════════════════════════ -->
+    <main class="main">
+
+      <!-- LEFT: Upload Panel -->
+      <section class="panel upload-panel">
+
+        <h2>📄 Upload &amp; Index</h2>
+
+        <!-- Drop zone -->
+        <div class="drop-zone" id="dropZone">
+          <input type="file" id="fileInput" accept=".pdf" hidden>
+          <div class="drop-content">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="12" y1="18" x2="12" y2="12"/>
+              <polyline points="9 15 12 12 15 15"/>
+            </svg>
+            <p>Drop a PDF here or <strong>browse</strong></p>
+            <span class="muted">Max 20MB · ephemeral storage</span>
+          </div>
+        </div>
+
+        <!-- Upload preview -->
+        <div id="preview" style="display:none"></div>
+
+        <!-- Document list -->
+        <div class="doc-list" id="docList"></div>
+      </section>
+
+      <!-- CENTER: Index Progress Panel -->
+      <section class="panel index-progress-panel" id="indexProgressPanel" style="display:none">
+        <h2>📊 Index Progress</h2>
+
+        <!-- Phase bars -->
+        <div class="phase-bars">
+          <div class="phase-row" id="phase-tokenizing">
+            <span class="phase-label">Tokenizing</span>
+            <div class="phase-bar-track">
+              <div class="phase-bar-fill" id="bar-tokenizing"></div>
+            </div>
+          </div>
+          <div class="phase-row" id="phase-npmi">
+            <span class="phase-label">NPMI Matrix</span>
+            <div class="phase-bar-track">
+              <div class="phase-bar-fill" id="bar-npmi"></div>
+            </div>
+          </div>
+          <div class="phase-row" id="phase-gee">
+            <span class="phase-label">GEE Embedding</span>
+            <div class="phase-bar-track">
+              <div class="phase-bar-fill" id="bar-gee"></div>
+            </div>
+          </div>
+          <div class="phase-row" id="phase-lider">
+            <span class="phase-label">LIDER Bins</span>
+            <div class="phase-bar-track">
+              <div class="phase-bar-fill" id="bar-lider"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live stats -->
+        <div class="index-stats" id="indexStats">
+          <span class="stat-item">chunks: <em id="stat-chunks">—</em></span>
+          <span class="stat-item">vocab: <em id="stat-vocab">—</em></span>
+          <span class="stat-item">dims: <em id="stat-dims">—</em></span>
+          <span class="stat-item">bins: <em id="stat-bins">—</em></span>
+        </div>
+
+        <!-- Magic canvas -->
+        <canvas id="magic-canvas" width="400" height="300"></canvas>
+      </section>
+
+      <!-- RIGHT: Search / Graph Panel -->
+      <section class="panel result-panel">
+
+        <!-- Tab bar -->
+        <div class="tab-bar">
+          <button class="tab active" id="searchTab" onclick="switchTab('search')">🔍 Search</button>
+          <button class="tab" id="graphTab" onclick="switchTab('graph')">🕸️ Graph</button>
+        </div>
+
+        <!-- SEARCH PANE -->
+        <div id="searchPane">
+
+          <!-- Dev mode trace panel -->
+          <div id="devPanel" class="dev-panel" style="display:none">
+            <div class="dev-header">
+              <span>🔬 Developer Trace</span>
+              <span class="muted">Step-by-step pipeline execution</span>
+            </div>
+            <div id="metricsOutput" class="metrics-output"></div>
+          </div>
+
+          <!-- Search bar -->
+          <div class="search-bar">
+            <textarea
+              id="queryInput"
+              placeholder="Ask a question about your document..."
+              rows="2"
+              disabled
+            ></textarea>
+            <div class="search-controls">
+              <div class="topk-control">
+                <label>Top-k:</label>
+                <select id="topK">
+                  <option value="3">3</option>
+                  <option value="5" selected>5</option>
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                </select>
+              </div>
+              <button class="btn btn-query" id="searchBtn" onclick="doSearch()" disabled>
+                <span id="searchBtnText">Search</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Results -->
+          <div id="results"></div>
+
+          <!-- Empty state -->
+          <div class="empty-state" id="emptyState">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#4b5563" stroke-width="0.8">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="M21 21l-4.35-4.35"/>
+            </svg>
+            <p>Upload &amp; index a PDF, then ask a question.</p>
+          </div>
+        </div>
+
+        <!-- GRAPH PANE -->
+        <div id="graphPane" style="display:none">
+          <div class="graph-header">
+            <span>Word Co-occurrence Network</span>
+            <span class="muted">Nodes = vocabulary · Edges = NPMI weight · Click node to trace path</span>
+          </div>
+          <div class="graph-container" id="graphSvg"></div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
