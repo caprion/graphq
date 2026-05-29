@@ -2,6 +2,9 @@
 
 Sub-millisecond semantic document search without neural networks, embeddings APIs, or vector databases.
 
+**Repo:** [github.com/caprion/graphq](https://github.com/caprion/graphq) | **Live demo:** [graphq.pages.dev](https://915fefef.graphq.pages.dev) — upload a PDF, build the index, search interactively with D3 graph visualization and pipeline trace mode.
+
+
 **Pipeline:** Raw text → NPMI co-occurrence graph → Graph Encoder Embedding (GEE) → LIDER learned index → sub-ms retrieval.
 
 ```
