@@ -3,194 +3,202 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GraphQ — PDF Q+A · NPMI · GEE · LIDER</title>
-  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <title>GraphQ — NPMI · GEE · LIDER — Zero-Chunking Document Search</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="app">
 
-    <!-- ═══ DISCLAIMER BANNER ══════════════════════════════════════════════ -->
-    <div class="disclaimer-banner">
-      <span class="disclaimer-icon">⚠️</span>
-      <strong>Ephemeral mode:</strong> All documents are stored temporarily in server memory
-      and <code>/tmp/</code> only — <em>wiped automatically on restart</em>.
-      Do NOT upload personal, confidential, or sensitive documents.
+<!-- ═══ DISCLAIMER BANNER ══════════════════════════════════════════════════ -->
+<div class="disclaimer-banner">
+  <span>⚠️</span>
+  <strong>Ephemeral demo:</strong> Uploaded documents are stored in server memory only — wiped on restart.
+  <strong>Do NOT upload personal, confidential, or sensitive documents.</strong>
+  The 5 demo documents below are pre-loaded and permanent.
+</div>
+
+<!-- ═══ HERO: How It Works ══════════════════════════════════════════════════ -->
+<header class="hero">
+  <div class="hero-content">
+    <h1>Graph<span class="accent">Q</span></h1>
+    <p class="subtitle">Zero-chunking document search — no neural networks, no embedding APIs, no vector databases.</p>
+    <div class="hero-pipeline">
+      <div class="hero-stage">
+        <div class="hero-stage-icon">📄</div>
+        <div class="hero-stage-label">Documents</div>
+      </div>
+      <div class="hero-arrow">→</div>
+      <div class="hero-stage">
+        <div class="hero-stage-icon">🕸️</div>
+        <div class="hero-stage-label">NPMI Graph</div>
+      </div>
+      <div class="hero-arrow">→</div>
+      <div class="hero-stage">
+        <div class="hero-stage-icon">🧬</div>
+        <div class="hero-stage-label">GEE Embedding</div>
+      </div>
+      <div class="hero-arrow">→</div>
+      <div class="hero-stage">
+        <div class="hero-stage-icon">⚡</div>
+        <div class="hero-stage-label">LIDER Index</div>
+      </div>
+      <div class="hero-arrow">→</div>
+      <div class="hero-stage">
+        <div class="hero-stage-icon">🔍</div>
+        <div class="hero-stage-label">Sub-ms Search</div>
+      </div>
+    </div>
+    <p class="hero-tagline">Raw text in, ranked results out. Three compute-only stages on commodity hardware.</p>
+  </div>
+</header>
+
+<main class="app">
+
+  <!-- ═══ STATUS BAR ════════════════════════════════════════════════════════ -->
+  <div class="status-bar" id="statusBar">
+    <span id="apiHealth" class="status-chip">⏳ Checking...</span>
+    <span id="pipelineStats" class="status-chip"></span>
+    <span id="perfBar" class="perf-bar"></span>
+  </div>
+
+  <!-- ═══ PIPELINE STAGE CARDS ══════════════════════════════════════════════ -->
+  <section class="pipeline-cards" id="pipelineCards">
+    <div class="stage-card" id="card-npmi">
+      <div class="stage-card-header">
+        <span class="stage-num">1</span>
+        <h3>NPMI <span class="stage-fullname">Normalized Pointwise Mutual Information</span></h3>
+      </div>
+      <div class="stage-formula">NPMI(i,j) = ln(P(i,j)/P(i)P(j)) / −ln(P(i,j))</div>
+      <p>Converts raw word co-occurrence into meaningful edge weights. Suppresses hub words ("the", "is"), amplifies rare but meaningful pairs.</p>
+      <div class="stage-meta">
+        <span class="meta-item" id="npmi-vocab">vocab: —</span>
+        <span class="meta-item" id="npmi-edges">edges: —</span>
+        <span class="meta-item" id="npmi-time">—</span>
+      </div>
     </div>
 
-    <!-- ═══ HEADER ════════════════════════════════════════════════════════ -->
-    <header class="header">
-      <div class="logo">
-        <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-          <rect width="32" height="32" rx="8" fill="#6366f1"/>
-          <path d="M8 10h16M8 16h10M8 22h13" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-          <circle cx="24" cy="22" r="4" fill="#22d3ee" stroke="white" stroke-width="1.5"/>
-          <path d="M22.5 22l1 1 2-2" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <h1>GraphQ</h1>
+    <div class="stage-card" id="card-gee">
+      <div class="stage-card-header">
+        <span class="stage-num">2</span>
+        <h3>GEE <span class="stage-fullname">Graph Encoder Embedding</span></h3>
       </div>
-      <div class="header-right">
-        <span class="tagline">NPMI · GEE · LIDER</span>
-        <label class="dev-toggle" title="Developer mode — see step-by-step pipeline trace">
-          <input type="checkbox" id="devToggle">
-          <span>🔬 Dev</span>
-        </label>
+      <div class="stage-formula">Z = D<sup>α</sup> · A · Y</div>
+      <p>Model-free graph embedding. One matrix multiply — no eigen-decomposition, no gradient descent, no training.</p>
+      <div class="stage-meta">
+        <span class="meta-item" id="gee-dims">dims: —</span>
+        <span class="meta-item" id="gee-alpha">α: 0.5</span>
+        <span class="meta-item" id="gee-time">—</span>
       </div>
-    </header>
-
-    <!-- ═══ STATUS BAR ════════════════════════════════════════════════════ -->
-    <div class="status-bar" id="statusBar">
-      <span id="apiStatus" class="status-chip dot-red">API: checking...</span>
-      <span id="indexStatus" class="status-chip dot-gray">Index: not built</span>
-      <span class="spinner" id="spinner" style="display:none"></span>
-      <span id="statusMsg"></span>
     </div>
 
-    <!-- ═══ MAIN ═════════════════════════════════════════════════════════ -->
-    <main class="main">
+    <div class="stage-card" id="card-lider">
+      <div class="stage-card-header">
+        <span class="stage-num">3</span>
+        <h3>LIDER <span class="stage-fullname">Learned Index for Dense Retrieval</span></h3>
+      </div>
+      <div class="stage-formula">predict(position) → local binary search</div>
+      <p>Replaces ANN tree traversal with a learned model that predicts where each match lives. Sub-millisecond at billion scale.</p>
+      <div class="stage-meta">
+        <span class="meta-item" id="lider-bins">bins: —</span>
+        <span class="meta-item" id="lider-vectors">vectors: —</span>
+        <span class="meta-item" id="lider-time">—</span>
+      </div>
+    </div>
+  </section>
 
-      <!-- LEFT: Upload Panel -->
-      <section class="panel upload-panel">
+  <!-- ═══ SEARCH + RESULTS ═══════════════════════════════════════════════════ -->
+  <section class="search-section">
+    <div class="search-bar">
+      <input
+        type="text"
+        id="queryInput"
+        placeholder="Ask a question about graph theory, machine learning, NLP..."
+        autocomplete="off"
+      />
+      <div class="search-controls">
+        <select id="topK">
+          <option value="3">Top 3</option>
+          <option value="5" selected>Top 5</option>
+          <option value="10">Top 10</option>
+        </select>
+        <button id="searchBtn" onclick="doSearch()">Search</button>
+      </div>
+    </div>
 
-        <h2>📄 Upload &amp; Index</h2>
+    <!-- Suggested queries -->
+    <div class="suggested-queries" id="suggestedQueries">
+      <span class="suggested-label">Try:</span>
+    </div>
 
-        <!-- Drop zone -->
+    <!-- Metrics bar -->
+    <div class="metrics-bar" id="metricsBar" style="display:none">
+      <span class="metric"><span class="metric-label">Tokenize</span> <span class="metric-value" id="m-tok">—</span></span>
+      <span class="metric"><span class="metric-label">NPMI</span> <span class="metric-value" id="m-npmi">—</span></span>
+      <span class="metric"><span class="metric-label">GEE</span> <span class="metric-value" id="m-gee">—</span></span>
+      <span class="metric"><span class="metric-label">LIDER</span> <span class="metric-value" id="m-lider">—</span></span>
+      <span class="metric total"><span class="metric-label">Total</span> <span class="metric-value" id="m-total">—</span></span>
+    </div>
+
+    <!-- Results with trace -->
+    <div class="results-area" id="resultsArea">
+      <!-- Trace panel -->
+      <div class="trace-panel" id="tracePanel">
+        <div class="trace-header">
+          <span>🔬 Pipeline Trace</span>
+          <span class="trace-subtitle">Step-by-step execution for this query</span>
+        </div>
+        <div id="traceContent" class="trace-content"></div>
+      </div>
+
+      <!-- Results list -->
+      <div class="results-list" id="resultsList"></div>
+    </div>
+
+    <!-- Empty state -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🔍</div>
+      <h3>5 demo documents pre-loaded and indexed</h3>
+      <p>Graph Theory · Machine Learning · Search Engines · NLP · Network Science</p>
+      <p class="empty-hint">Try a suggested query above or type your own.</p>
+    </div>
+  </section>
+
+  <!-- ═══ UPLOAD YOUR OWN ════════════════════════════════════════════════════ -->
+  <section class="upload-section">
+    <details>
+      <summary>📄 Upload your own PDF <span class="summary-hint">(ephemeral — wiped on restart)</span></summary>
+      <div class="upload-inner">
         <div class="drop-zone" id="dropZone">
           <input type="file" id="fileInput" accept=".pdf" hidden>
           <div class="drop-content">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="12" y1="18" x2="12" y2="12"/>
-              <polyline points="9 15 12 12 15 15"/>
-            </svg>
             <p>Drop a PDF here or <strong>browse</strong></p>
-            <span class="muted">Max 20MB · ephemeral storage</span>
+            <span class="muted">Max 20MB · replaces demo index until server restart</span>
           </div>
         </div>
+        <div id="uploadStatus" class="upload-status"></div>
+      </div>
+    </details>
+  </section>
 
-        <!-- Upload preview -->
-        <div id="preview" style="display:none"></div>
-
-        <!-- Document list -->
-        <div class="doc-list" id="docList"></div>
-      </section>
-
-      <!-- CENTER: Index Progress Panel -->
-      <section class="panel index-progress-panel" id="indexProgressPanel" style="display:none">
-        <h2>📊 Index Progress</h2>
-
-        <!-- Phase bars -->
-        <div class="phase-bars">
-          <div class="phase-row" id="phase-tokenizing">
-            <span class="phase-label">Tokenizing</span>
-            <div class="phase-bar-track">
-              <div class="phase-bar-fill" id="bar-tokenizing"></div>
-            </div>
-          </div>
-          <div class="phase-row" id="phase-npmi">
-            <span class="phase-label">NPMI Matrix</span>
-            <div class="phase-bar-track">
-              <div class="phase-bar-fill" id="bar-npmi"></div>
-            </div>
-          </div>
-          <div class="phase-row" id="phase-gee">
-            <span class="phase-label">GEE Embedding</span>
-            <div class="phase-bar-track">
-              <div class="phase-bar-fill" id="bar-gee"></div>
-            </div>
-          </div>
-          <div class="phase-row" id="phase-lider">
-            <span class="phase-label">LIDER Bins</span>
-            <div class="phase-bar-track">
-              <div class="phase-bar-fill" id="bar-lider"></div>
-            </div>
-          </div>
+  <!-- ═══ GRAPH VIEW ═════════════════════════════════════════════════════════ -->
+  <section class="graph-section">
+    <details>
+      <summary>🕸️ Co-occurrence Graph <span class="summary-hint">D3 force-directed network of word relationships</span></summary>
+      <div class="graph-inner">
+        <div class="graph-container" id="graphContainer">
+          <svg id="graphSvg"></svg>
         </div>
-
-        <!-- Live stats -->
-        <div class="index-stats" id="indexStats">
-          <span class="stat-item">chunks: <em id="stat-chunks">—</em></span>
-          <span class="stat-item">vocab: <em id="stat-vocab">—</em></span>
-          <span class="stat-item">dims: <em id="stat-dims">—</em></span>
-          <span class="stat-item">bins: <em id="stat-bins">—</em></span>
+        <div class="graph-legend">
+          <span>Nodes = vocabulary words (sized by frequency)</span>
+          <span>Edges = NPMI weight (thicker = stronger co-occurrence)</span>
+          <span>Click a node to see its nearest neighbors</span>
         </div>
+      </div>
+    </details>
+  </section>
 
-        <!-- Magic canvas -->
-        <canvas id="magic-canvas" width="400" height="300"></canvas>
-      </section>
+</main>
 
-      <!-- RIGHT: Search / Graph Panel -->
-      <section class="panel result-panel">
-
-        <!-- Tab bar -->
-        <div class="tab-bar">
-          <button class="tab active" id="searchTab" onclick="switchTab('search')">🔍 Search</button>
-          <button class="tab" id="graphTab" onclick="switchTab('graph')">🕸️ Graph</button>
-        </div>
-
-        <!-- SEARCH PANE -->
-        <div id="searchPane">
-
-          <!-- Dev mode trace panel -->
-          <div id="devPanel" class="dev-panel" style="display:none">
-            <div class="dev-header">
-              <span>🔬 Developer Trace</span>
-              <span class="muted">Step-by-step pipeline execution</span>
-            </div>
-            <div id="metricsOutput" class="metrics-output"></div>
-          </div>
-
-          <!-- Search bar -->
-          <div class="search-bar">
-            <textarea
-              id="queryInput"
-              placeholder="Ask a question about your document..."
-              rows="2"
-              disabled
-            ></textarea>
-            <div class="search-controls">
-              <div class="topk-control">
-                <label>Top-k:</label>
-                <select id="topK">
-                  <option value="3">3</option>
-                  <option value="5" selected>5</option>
-                  <option value="10">10</option>
-                  <option value="20">20</option>
-                </select>
-              </div>
-              <button class="btn btn-query" id="searchBtn" onclick="doSearch()" disabled>
-                <span id="searchBtnText">Search</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Results -->
-          <div id="results"></div>
-
-          <!-- Empty state -->
-          <div class="empty-state" id="emptyState">
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#4b5563" stroke-width="0.8">
-              <circle cx="11" cy="11" r="8"/>
-              <path d="M21 21l-4.35-4.35"/>
-            </svg>
-            <p>Upload &amp; index a PDF, then ask a question.</p>
-          </div>
-        </div>
-
-        <!-- GRAPH PANE -->
-        <div id="graphPane" style="display:none">
-          <div class="graph-header">
-            <span>Word Co-occurrence Network</span>
-            <span class="muted">Nodes = vocabulary · Edges = NPMI weight · Click node to trace path</span>
-          </div>
-          <div class="graph-container" id="graphSvg"></div>
-        </div>
-
-      </section>
-    </main>
-  </div>
-
-  <script src="app.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
